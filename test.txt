@@ -1,0 +1,17 @@
+Rows:7
+Cols:7
+Number of Enemy King, Queen, Bishop, Rook, Knight, Ferz, Princess, Empress, Pawn (space between):0 0 0 0 0 0 0 0 5
+Position of Enemy Pieces:
+[Pawn,b5]
+[Pawn,c5]
+[Pawn,d5]
+[Pawn,e5]
+[Pawn,f5]
+Number of Own King, Queen, Bishop, Rook, Knight, Ferz, Princess, Empress (space between):0 0 0 0 0 0 0 0 5
+Starting Position of Pieces [Piece, Pos]:
+[Pawn,b1]
+[Pawn,c1]
+[Pawn,d1]
+[Pawn,e1]
+[Pawn,f1]
+
