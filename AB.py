@@ -1,15 +1,16 @@
 from collections import deque
 from dataclasses import dataclass
-from enum import Enum, auto
 import sys
-from typing import Deque, Dict, List, Set, Tuple
+from typing import Deque, Dict, List, Set, Tuple, Union
+from enum import Enum, auto
 from random import choice
 
 ### IMPORTANT: Remove any print() functions or rename any print functions/variables/string when submitting on CodePost
 ### The autograder will not run if it detects any print function.
 
 ROWS, COLS = 7, 7 
-MAX_DEPTH = 4  
+MAX_DEPTH = 3  
+W_MOBILITY = 10 
 
 #############################################################################
 ######## Piece Logic
@@ -126,7 +127,7 @@ class Board:
         for dx, dy in directions:
             inc = Increment(dx, dy)
             q.append(((row, col), inc))
-        
+            
         moves = {}
         while q:
             (nrow, ncol), inc = q.popleft()
@@ -137,12 +138,14 @@ class Board:
                 moves[(nrow, ncol)] = True 
             self.increment_threat(nrow, ncol, mult, piece.color) 
 
-            if not self.get_piece(nrow, ncol):    
-                nrow, ncol = inc.increment(nrow, ncol)
-                q.append(((nrow, ncol), inc)) 
-        
+            if (nrow != row or ncol != col) and self.get_piece(nrow, ncol):  
+                continue   
+            nrow, ncol = inc.increment(nrow, ncol)
+            q.append(((nrow, ncol), inc)) 
+         
         if (row, col) in moves:
             moves.pop((row, col))
+
         return list(moves.keys()) 
         
 
@@ -189,12 +192,15 @@ class Board:
             for col in range(COLS):
                 piece: Piece =  self.pieces[row][col]
                 if piece:
-                    mat[row][col] = (piece.piece_type + "     ")[:4]
+                    mat[row][col] = add_color((piece.piece_type + "     ")[:4], piece.color)
         for row in mat:
             print("|".join(row))
 
-def eval_board(board: Board): 
-    board 
+def add_color(s, color):
+    if color is Color.WHITE: 
+        return bcolors.OKGREEN + s + bcolors.ENDC
+    else: 
+        return bcolors.WARNING + s + bcolors.ENDC
 
 #############################################################################
 ######## State
@@ -289,12 +295,64 @@ class Game:
             moves.extend(self.board.process_move(row, col, 0))
         return moves 
 
+def material_score(game: Game): 
+    score = 0
+    for row, col in game.pieces[Color.WHITE]: 
+        piece = game.board.get_piece(row, col) 
+        score += PIECE_VALUES[piece.piece_type] 
+
+    for row, col in game.pieces[Color.BLACK]: 
+        piece = game.board.get_piece(row, col) 
+        score -= PIECE_VALUES[piece.piece_type] 
+    
+    return score 
+    
+def mobility_score(game: Game): 
+    return len(game.get_available_moves()) 
+
+def eval_node(game: Game): 
+    return material_score(game) + W_MOBILITY * mobility_score(game) 
 
 #Implement your minimax with alpha-beta pruning algorithm here.
 def ab(gameboard: Dict[Tuple[int], Tuple[str]]):
     game = Game(gameboard) 
-    moves = game.get_available_moves() 
+    _, move = minimax(game) 
+    return move
 
+def ab_game(game: Game): 
+    _, move = minimax(game) 
+    return move
+
+def minimax(game: Game, depth=MAX_DEPTH): 
+    if depth == 0:
+        return eval_node(game), ()
+    f = max if game.turn is Color.WHITE else min 
+    score = -sys.maxsize if game.turn is Color.WHITE else sys.maxsize 
+    winning_move = ()
+    moves = game.get_available_moves() 
+    for frm, to in moves: 
+        game.move(frm, to) 
+        current, _ = minimax(game, depth - 1) 
+        score = f(score, current) 
+        if current == score: 
+            winning_move = (frm, to)  
+        game.undo()
+    return score, winning_move 
+
+def random_agent(gameboard: Dict[Tuple[int], Tuple[str]]): 
+    game = Game(gameboard)
+    moves = game.get_available_moves()
+    if not moves:
+        print("CANT MOVE") 
+        return () 
+    return choice(moves)
+
+def random_game(game: Game): 
+    moves = game.get_available_moves()
+    if not moves:
+        print("CANT MOVE") 
+        return () 
+    return choice(moves)
 
 #############################################################################
 ######## Parser function and helper functions
@@ -347,7 +405,27 @@ def main():
     config = sys.argv[1]
     rows, cols, gameboard = parse(config)
     ROWS, COLS = rows, cols 
-    studentAgent(gameboard)
+    game = Game(gameboard)
+    game.board.print_board()
+    print(game.get_available_moves())
+    while True: 
+        frm, to = -1, -1
+        print(f'Current move: {game.turn}')
+        if game.turn is Color.WHITE:
+            frm, to = ab_game(game) 
+            game.move(frm, to) 
+        else: 
+            mv = random_game(game) 
+            if not mv: 
+                print("WIN!") 
+                break 
+            frm, to = mv 
+            game.move(frm, to) 
+        print("move: ", frm, "to ", to) 
+        game.board.print_board()
+    game.board.print_board()
+        
+        
 
 ### DO NOT EDIT/REMOVE THE FUNCTION HEADER BELOW###
 # Chess Pieces: King, Queen, Knight, Bishop, Rook, Princess, Empress, Ferz, Pawn (First letter capitalized)
@@ -363,6 +441,16 @@ def main():
 # Return value:
 # move: A tuple containing the starting position of the piece being moved to the new ending position for the piece. x-axis in String format and y-axis in integer format.
 # move example: (('a', 0), ('b', 3))
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 def studentAgent(gameboard):
     # You can code in here but you cannot remove this function, change its parameter or change the return type
