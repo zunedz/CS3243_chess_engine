@@ -309,8 +309,40 @@ def ab(gameboard: Dict[Tuple[int], Tuple[str]]):
     return move
 
 def ab_game(game: Game): 
-    _, move = minimax(game) 
+    _, move = ab_pruning(game) 
     return move
+
+def ab_pruning(game: Game, depth=MAX_DEPTH, alpha=-sys.maxsize, beta=sys.maxsize): 
+    if depth == 0:
+        return eval_node(game), ()
+
+    winning_move = ()
+    moves = game.get_available_moves() 
+    if game.turn is Color.WHITE:
+        score = - sys.maxsize
+        for frm, to in moves: 
+            game.move(frm, to) 
+            current, _ = ab_pruning(game, depth - 1, alpha, beta) 
+            score = max(score, current) 
+            if current == score: 
+                winning_move = (frm, to)  
+            game.undo()
+            alpha = max(alpha, score) 
+            if beta <= alpha:
+                break
+    else: 
+        score = sys.maxsize
+        for frm, to in moves: 
+            game.move(frm, to) 
+            current, _ = ab_pruning(game, depth - 1, alpha, beta) 
+            score = min(score, current) 
+            if current == score: 
+                winning_move = (frm, to)  
+            game.undo()
+            beta = min(beta, score) 
+            if beta <= alpha:
+                break
+    return score, winning_move
 
 def minimax(game: Game, depth=MAX_DEPTH): 
     if depth == 0:
